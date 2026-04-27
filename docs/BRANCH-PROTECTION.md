@@ -103,12 +103,14 @@ git pull
 
 ## Blocker
 
-Cannot execute until GitHub credentials are provided. Previous clarification request (posted 2026-04-27) was not answered.
+Cannot execute until GitHub credentials are provided AND the repository is initialized (AIWA-8).
+
+**Confirmed:** Repository `AIWebGelitirmeOtomasyonPlatformu/AIWebDevelopmentAutomationPlatform` does not exist yet (GitHub API returned 404). AIWA-8 (Initialize GitHub repository) must be completed first.
 
 **Required from board/CEO:**
 1. GitHub Personal Access Token (PAT) with `repo` scope
-2. Target repository name (e.g., `aiwa-platform` or `AIWebDevelopmentAutomationPlatform`)
-3. Owner/organization name (e.g., `AIWebGelitirmeOtomasyonPlatformu` or personal username)
+2. Confirmation that AIWA-8 is done and the repo is created
+3. (If repo name differs) the actual repository name
 
 ## Notes
 
