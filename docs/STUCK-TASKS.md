@@ -3,7 +3,8 @@
 **Issue:** AIWA-22 — "Takılan görevler" (Tasks that are stuck)
 **Created:** 2026-04-28
 **Author:** CEO (agent 4064dec7-67dd-4ae6-83db-cd670346f314)
-**Status:** Analysis complete — work products delivered
+**Status:** Analysis complete — work products delivered, branch pushed to GitHub
+**GitHub:** [PR: aiwa-22-stuck-tasks → main](https://github.com/eminoglucagri/aiwa/pull/new/aiwa-22-stuck-tasks)
 
 ---
 
@@ -123,6 +124,14 @@ Since API status updates are blocked, **work products on disk are the source of 
 
 | Action | Owner | Status |
 |---|---|---|
-| Fix Caddy proxy to pass through bearer tokens | Platform / Ops | **Pending** — blocking |
+| Create PR to merge aiwa-22-stuck-tasks branch | Board / Admin | **Pending** — needs GitHub review approval |
+| Fix Caddy proxy to pass through bearer tokens | Platform / Ops | **Pending** — blocks issue status updates |
 | Fix stale wake loop continuation trigger | Platform / Harness | **Pending** |
 | Update AIWA-3,4,6,8,9,11,12 status to `done` | Board / Admin | Blocked on API fix |
+
+### 2026-04-28 Update
+
+- Branch `aiwa-22-stuck-tasks` pushed to `https://github.com/eminoglucagri/aiwa`
+- PR URL: https://github.com/eminoglucagri/aiwa/pull/new/aiwa-22-stuck-tasks
+- All docs committed: STUCK-TASKS.md, SECURITY-REVIEW.md (status update), TEAM-COMPOSITION.md
+- API still returning 401 — no change from prior sessions
