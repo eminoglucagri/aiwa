@@ -1,100 +1,246 @@
-# Deployment Guide
+# Deployment Workflow — AI Web Development Automation Platform
+
+**Issue:** AIWA-20
+**Status:** Implemented
+**Last Updated:** 2026-04-28
+
+---
 
 ## Overview
 
-This document describes the automated CI/CD pipeline for the AI Web Development Automation Platform. The pipeline handles code push through to production deployment on Vercel, including smoke testing and automatic rollback on failure.
+This document describes the automated deployment pipeline for the AIWA platform. The pipeline handles: code push → Vercel preview deployment → smoke tests → production promotion → rollback on failure.
 
-## Pipeline Flow
+---
+
+## Pipeline Stages
 
 ```
-Code Push → Vercel Preview Deploy → Smoke Tests → [main branch only] Promote to Production
-                                                                         ↓ [failure]
-                                                                   Rollback
+Push to branch
+    │
+    ▼
+┌─────────────────────┐
+│  Preview Deployment  │
+│  (every branch)      │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  Smoke Tests        │─────────── FAIL ───────────┐
+│  (8 checks)         │                             │
+└──────────┬──────────┘                             │
+           │ PASS                                    ▼
+           ▼                              ┌─────────────────────┐
+┌─────────────────────┐                   │  Rollback            │
+│  Promote to Prod     │                   │  (main branch only)  │
+│  (main branch only)  │                   └─────────────────────┘
+└─────────────────────┘
 ```
 
-## Components
+---
 
-### 1. CI Workflow (`.github/workflows/vercel-deploy.yml`)
+## Stage 1: Preview Deployment
 
-Triggers on every push to any branch. Runs in 4 jobs:
+**Trigger:** Any push to any branch
 
-| Job | Trigger | Description |
-|-----|---------|-------------|
-| `preview` | All pushes | Deploys to Vercel preview URL |
-| `smoke-test` | After `preview` | Validates preview URL health |
-| `promote` | `main` + smoke passed | Promotes preview to production |
-| `rollback` | `main` + smoke failed | Reverts to previous production |
+**Actions:**
+1. GitHub Actions checks out the code
+2. Installs dependencies (`npm ci`)
+3. Runs `npm run typecheck` (skipped if not configured)
+4. Runs `npm run lint` (skipped if not configured)
+5. Runs `npm test` (skipped if not configured)
+6. Deploys to Vercel preview via `amond/vercel-action@v2`
 
-### 2. Smoke Tests (`scripts/deploy/smoke-test.sh`)
+**Outputs:**
+- `preview_url` — URL of the preview deployment
+- `preview_deployment_id` — Vercel deployment ID
 
-Checks the preview deployment health:
-
-1. HTTP 200 response from preview URL
-2. Response body non-empty (>1KB)
-3. No Vercel error pages in response
-4. Critical CSS/JS assets loadable
-
-### 3. Rollback Script (`scripts/deploy/rollback.sh`)
-
-On smoke test failure on `main`:
-1. Fetches last stable production deployment ID
-2. Marks the failed deployment as inactive
-3. Redeploys the last stable production build
-
-## Vercel API Requirements
-
-The pipeline uses these Vercel API endpoints:
-
-- **Preview deploy**: `amond/vercel-action@v2` GitHub Action
-- **Promote to production**: `POST /v13/deployments/{id}/production`
-- **Deactivate failed deployment**: `PATCH /v13/deployments/{id}` with `{"inactive": true}`
-- **Redeploy stable**: `POST /v13/deployments/{id}/redeploy`
-
-## Required GitHub Secrets
-
+**Secrets Required (GitHub Actions):**
 | Secret | Description |
-|--------|-------------|
-| `VERCEL_TOKEN` | Vercel API token with deploy permissions |
-| `VERCEL_ORG_ID` | Vercel organization ID (`team_xxx`) |
+|---|---|
+| `VERCEL_TOKEN` | Vercel API token |
+| `VERCEL_ORG_ID` | Vercel organization ID |
 | `VERCEL_PROJECT_ID` | Vercel project ID |
 
-## Branch Behavior
+---
 
-| Branch | Behavior |
-|--------|----------|
-| `main` | Preview deploy → smoke test → promote to production |
-| Any feature branch | Preview deploy → smoke test → no promotion |
+## Stage 2: Smoke Tests
 
-## Manual Promotion
+**Trigger:** After preview deployment succeeds
 
-To trigger a production deployment via API:
+**Test Suite (8 checks):**
+1. **HTTP Status** — Expects 200 on root URL
+2. **Health Endpoint** — Checks `/health`, `/api/health`, `/_health`, `/status`, `/api/status`
+3. **Critical Assets** — Validates HTML structure and JS bundle references
+4. **Security Headers** — Checks `X-Content-Type-Options`, `X-Frame-Options`
+5. **API Endpoints** — Verifies `/api` responds with 200/404/405
+6. **SSL Certificate** — Validates certificate is present and not expired
+7. **Response Time** — Expects < 5 second response
+8. **404 Handling** — Non-existent pages return 4xx, not 5xx
+
+**Script:** `scripts/deploy/smoke-test.sh <preview_url>`
+
+**Exit Codes:**
+- `0` — All tests passed
+- `1` — One or more tests failed
+
+**On Failure:** Pipeline stops. On `main` branch, rollback is triggered.
+
+---
+
+## Stage 3: Promote to Production
+
+**Trigger:** Push to `main` branch, smoke tests passed
+
+**Actions:**
+1. POST to `https://api.vercel.com/v13/deployments/{id}/production`
+2. Vercel promotes the preview deployment to production URL
+3. GitHub deployment record created (state: success)
+
+---
+
+## Stage 4: Rollback
+
+**Trigger:** Smoke tests fail on `main` branch
+
+**Actions:**
+1. Identify the last successful production deployment
+2. Promote it to production (replaces the failed deployment)
+3. Wait up to 5 minutes for the rollback to become `READY`
+4. Create GitHub deployment record (state: failure)
+
+**Script:** `scripts/deploy/rollback.sh --project-id <id> --token <token> --failed-deployment <id> --reason <reason>`
+
+**Rollback Logic:**
+1. Fetch current production deployment ID
+2. Find most recent `READY` deployment that is not the failed one
+3. Promote that deployment to production
+4. Poll for `READY` state (30 attempts × 10s = 5 min timeout)
+
+---
+
+## GitHub Actions Secrets Setup
+
+### Required Secrets
+
+Add these in **GitHub repo → Settings → Secrets and variables → Actions**:
 
 ```bash
-# Trigger via repository dispatch
-curl -X POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer $GITHUB_TOKEN" \
-  https://api.github.com/repos/{owner}/{repo}/dispatches \
-  -d '{"event_type":"deploy-production","client_payload":{"ref":"main"}}'
+VERCEL_TOKEN=ahor_xxxxxxxxxxxxxxxx
+VERCEL_ORG_ID=team_xxxxxxxxxxxxxxxx
+VERCEL_PROJECT_ID=prj_xxxxxxxxxxxxxxxx
 ```
 
-## Adding New Environment Variables
+### Getting Vercel Credentials
 
-1. Add the variable to Vercel dashboard → Project → Environment Variables
-2. Reference it in `.github/workflows/vercel-deploy.yml` as `${{ vars.VAR_NAME }}`
+1. **Vercel Token:** [vercel.com/account/tokens](https://vercel.com/account/tokens) → Create token
+2. **Org ID:** Run `vercel inspect <deployment-url>` or call `GET /v2/orgs/me`
+3. **Project ID:** Found in project URL: `vercel.com/{org}/{project}/...` or via API
 
-## Troubleshooting
+---
 
-### Smoke tests fail
-- Check the preview URL directly in browser
-- Verify all API endpoints return proper status codes
-- Check Vercel deployment logs in the Vercel dashboard
+## Vercel Configuration
 
-### Rollback didn't work
-- Manually go to Vercel dashboard → Deployments
-- Find the last green deployment and click "Promote to Production"
+### vercel.json
 
-### Preview not triggering
-- Verify GitHub Actions has access to the repository
-- Check that the Vercel GitHub integration is connected in Vercel dashboard
-- Ensure `VERCEL_TOKEN` secret is not expired
+```json
+{
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm ci",
+  "regions": ["iad1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" }
+      ]
+    }
+  ]
+}
+```
+
+### Environment Variables (Vercel Dashboard)
+
+For each environment (Production, Preview, Development):
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Neon PostgreSQL connection string |
+| `REDIS_URL` | Upstash Redis connection string |
+| `JWT_SECRET` | Secret for signing JWTs |
+| `ANTHROPIC_API_KEY` | Anthropic/Minimax API key |
+
+---
+
+## Pipeline Failure Modes
+
+| Failure Point | Behavior |
+|---|---|
+| Preview build fails | No deployment, job fails |
+| Preview deploy fails | Job fails, no smoke tests |
+| Smoke tests fail (non-main) | Job fails, no promotion, no rollback |
+| Smoke tests fail (main) | Triggers rollback to previous deployment |
+| Rollback times out | Logs warning, exit 1 — manual intervention needed |
+| Rollback also fails | Exit 1 — manual intervention required |
+
+---
+
+## Local Deployment Testing
+
+Test the smoke test script locally:
+
+```bash
+# Make sure script is executable
+chmod +x scripts/deploy/smoke-test.sh
+
+# Run against a preview URL
+./scripts/deploy/smoke-test.sh https://your-app.vercel.app
+
+# Test the rollback script
+./scripts/deploy/rollback.sh \
+  --project-id prj_xxx \
+  --token vercel_token \
+  --failed-deployment dep_xxx \
+  --reason "smoke-test-failure"
+```
+
+---
+
+## Project Structure
+
+```
+.
+├── .github/
+│   └── workflows/
+│       └── vercel-deploy.yml     # GitHub Actions pipeline
+├── scripts/
+│   └── deploy/
+│       ├── smoke-test.sh          # Smoke test suite
+│       └── rollback.sh            # Rollback automation
+├── vercel.json                    # Vercel project config
+└── docs/
+    └── DEPLOYMENT.md              # This document
+```
+
+---
+
+## Current Status
+
+- **Workflow:** `.github/workflows/vercel-deploy.yml` — Created
+- **Smoke Tests:** `scripts/deploy/smoke-test.sh` — Created (8 checks)
+- **Rollback:** `scripts/deploy/rollback.sh` — Created (auto-promotes last successful)
+- **Documentation:** `docs/DEPLOYMENT.md` — Created
+- **Pending:** `vercel.json` — Stub, needs project-specific configuration
+
+---
+
+## Next Steps
+
+1. **Configure Vercel secrets** in GitHub repo
+2. **Add `vercel.json`** with project-specific build settings
+3. **Create project** at vercel.com and get org/project IDs
+4. **Run first manual deployment** to verify pipeline end-to-end
+5. **Add `npm run typecheck && npm run build`** to pipeline once React frontend exists
