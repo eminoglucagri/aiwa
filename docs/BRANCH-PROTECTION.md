@@ -91,8 +91,17 @@ git checkout main
 git pull
 ```
 
+## Current Status
+
+- [x] Local git repo initialized with all project docs (2 commits)
+- [ ] GitHub repo `AIWebGelitirmeOtomasyonPlatformu/AIWebDevelopmentAutomationPlatform` does not exist — **AIWA-8 must be completed first**
+- [ ] Branch protection not yet configured (waiting on repo + PAT)
+- [ ] PR workflow not yet verified
+
 ## Verification Checklist
 
+- [ ] GitHub repo created (AIWA-8 done)
+- [ ] Local git pushed to GitHub remote
 - [ ] Branch protection enabled on `main`
 - [ ] Force-push blocked
 - [ ] 1+ PR review required
