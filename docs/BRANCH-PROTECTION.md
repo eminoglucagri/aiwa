@@ -1,10 +1,10 @@
 # Branch Protection & PR Requirements — AIWA-9
 
 **Issue:** AIWA-9
-**Status:** Ready to execute — all prerequisites and plan documented, awaiting credentials from board/CEO
+**Status:** Blocked — repo doesn't exist (AIWA-8 pending) and no GitHub PAT available
 
 **Date:** 2026-04-28
-**Updated:** 2026-04-28 (second heartbeat — still awaiting credentials)
+**Updated:** 2026-04-28 (third heartbeat — confirmed repo 404, installed gh CLI)
 
 ## Objective
 
@@ -93,10 +93,19 @@ git pull
 
 ## Current Status
 
-- [x] Local git repo initialized with all project docs (2 commits)
-- [ ] GitHub repo `AIWebGelitirmeOtomasyonPlatformu/AIWebDevelopmentAutomationPlatform` does not exist — **AIWA-8 must be completed first**
-- [ ] Branch protection not yet configured (waiting on repo + PAT)
-- [ ] PR workflow not yet verified
+- [x] Local git repo initialized — 3 commits, remote set to `https://github.com/AIWebGelitirmeOtomasyonPlatformu/AIWebDevelopmentAutomationPlatform.git`
+- [x] `gh` CLI v2.63.2 installed at `/home/paperclip/.local/bin/gh` (downloaded fresh, ready for auth)
+- [ ] GitHub repo does not exist — **AIWA-8 must be completed first** (GET returned 404)
+- [ ] Branch protection not configured (waiting on repo + PAT)
+- [ ] PR workflow not verified
+
+### Commits in local repo
+
+| Commit | Description |
+|--------|-------------|
+| `581a607` | docs: add AIWA project documentation (6 files) |
+| `f0a1fc9` | docs: update BRANCH-PROTECTION.md — repo not yet created |
+| `5d11980` | docs: add status tracking to BRANCH-PROTECTION.md |
 
 ## Verification Checklist
 
@@ -114,12 +123,24 @@ git pull
 
 Cannot execute until GitHub credentials are provided AND the repository is initialized (AIWA-8).
 
-**Confirmed:** Repository `AIWebGelitirmeOtomasyonPlatformu/AIWebDevelopmentAutomationPlatform` does not exist yet (GitHub API returned 404). AIWA-8 (Initialize GitHub repository) must be completed first.
+**Confirmed:** Repository `AIWebGelitirmeOtomasyonPlatformu/AIWebDevelopmentAutomationPlatform` does not exist (GitHub API returned 404). AIWA-8 must create it first.
 
-**Required from board/CEO:**
-1. GitHub Personal Access Token (PAT) with `repo` scope
-2. Confirmation that AIWA-8 is done and the repo is created
-3. (If repo name differs) the actual repository name
+**What board/CEO needs to do (in order):**
+
+1. **Create the GitHub repository** (AIWA-8):
+   ```bash
+   # Via browser: https://github.com/new
+   # Or via API (needs PAT):
+   gh repo create AIWebGelitirmeOtomasyonPlatformu/AIWebDevelopmentAutomationPlatform --public --source=. --push
+   ```
+
+2. **Provide a GitHub PAT** with `repo` scope. Once provided, I can:
+   - Authenticate `gh`: `gh auth login --with-token <PAT>`
+   - Push the local commits
+   - Configure branch protection via `gh api`
+   - Verify the PR workflow
+
+**Where to provide the PAT:** Set `GH_TOKEN` environment variable, or the board can comment it on the AIWA-9 issue (I will use it for gh auth then delete the comment).
 
 ## Notes
 
