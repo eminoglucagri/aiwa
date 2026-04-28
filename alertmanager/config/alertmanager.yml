@@ -1,0 +1,60 @@
+global:
+  smtp_host: "smtp.example.com:587"
+  smtp_auth_username: "alerts@example.com"
+  smtp_auth_password: "${SMTP_PASSWORD}"
+  smtp_from: "aiwa-alerts@example.com"
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: slack-alerts
+  routes:
+    - match:
+        severity: critical
+      receiver: slack-alerts
+      continue: false
+    - match:
+        severity: warning
+      receiver: slack-alerts
+      continue: false
+
+receivers:
+  - name: slack-alerts
+    slack_configs:
+      - channel: "${SLACK_CHANNEL:-#aiwa-alerts}"
+        send_resolved: true
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+        title: "{{ .Status | toUpper }} {{ .GroupLabels.alertname }}"
+        text: |
+          {{ range .Alerts }}
+          **{{ .Labels.alertname }}**
+          Severity: {{ .Labels.severity }}
+          {{ .Annotations.description }}
+          {{ if .Labels.runbook_url }}
+          Runbook: {{ .Labels.runbook_url }}
+          {{ end }}
+          {{ end }}
+        color: "{{ if eq .Status \"firing\" }}{{ if eq .CommonLabels.severity \"critical\" }}danger{{ else }}warning{{ end }}{{ else }}good{{ end }}"
+
+  - name: email-alerts
+    email_configs:
+      - to: "oncall@example.com"
+        send_resolved: true
+        headers:
+          subject: "[{{ .Status | toUpper }}] AIWA {{ .GroupLabels.alertname }}"
+        html: |
+          <h2>AIWA Alert: {{ .GroupLabels.alertname }}</h2>
+          {{ range .Alerts }}
+          <p><strong>Severity:</strong> {{ .Labels.severity }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          <p><a href="{{ .Annotations.runbook_url }}">Runbook</a></p>
+          {{ end }}
+
+inhibit_rules:
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: ['alertname', 'instance']

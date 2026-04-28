@@ -1,0 +1,61 @@
+# Prometheus scrape configuration for AIWA platform
+# scrape_configs are merged with any additional configs from rules/
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+rule_files:
+  - "rules/agent_alerts.yml"
+
+scrape_configs:
+  # ── AIWA Backend API ───────────────────────────────────────────────────────
+  - job_name: "aiwa-api"
+    static_configs:
+      - targets: ["aiwa-api:8000"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    honor_labels: true
+
+  # ── AIWA Worker (agent runtime) ───────────────────────────────────────────
+  - job_name: "aiwa-worker"
+    static_configs:
+      - targets: ["aiwa-worker:8001"]
+    metrics_path: "/metrics"
+    scrape_interval: 15s
+
+  # ── Prometheus Self-Monitoring ────────────────────────────────────────────
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ── Blackbox Exporter (uptime monitoring) ────────────────────────────────
+  - job_name: "generated-apps"
+    metrics_path: "/probe"
+    static_configs:
+      - targets:
+          # Seed with a placeholder; updated dynamically via file_sd or API
+          - "https://placeholder.vercel.app"
+    scrape_interval: 60s
+    parameters:
+      module: ["http_2xx"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: "blackbox-exporter:9115"
+        target_label: __address__
+
+  # ── Node Exporter (host metrics) ──────────────────────────────────────────
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    scrape_interval: 30s
