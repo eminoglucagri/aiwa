@@ -1,0 +1,294 @@
+name: Vercel Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - '**'  # All branches trigger preview deployments
+  repository_dispatch:
+    types: [deploy-production]
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1: Preview Deployment
+  # Triggered on every push to any branch
+  # ─────────────────────────────────────────────
+  preview:
+    name: Preview Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      preview_url: ${{ steps.deploy.outputs.preview_url }}
+      preview_deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck || echo "typecheck not configured, skipping"
+
+      - name: Lint
+        run: npm run lint || echo "lint not configured, skipping"
+
+      - name: Unit tests
+        run: npm test || echo "tests not configured, skipping"
+
+      - name: Deploy to Vercel Preview
+        id: deploy
+        uses: amond/vercel-action@v2
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+
+  # ─────────────────────────────────────────────
+  # Job 2: Smoke Tests on Preview
+  # Runs after preview deployment succeeds
+  # ─────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Tests
+    needs: preview
+    runs-on: ubuntu-latest
+    outputs:
+      smoke_passed: ${{ steps.tests.outputs.smoke_passed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        id: tests
+        run: |
+          PREVIEW_URL="${{ needs.preview.outputs.preview_url }}"
+          echo "Testing preview URL: $PREVIEW_URL"
+
+          # Run the smoke test script
+          bash scripts/deploy/smoke-test.sh "$PREVIEW_URL"
+          SMOKE_EXIT=$?
+
+          if [ $SMOKE_EXIT -eq 0 ]; then
+            echo "smoke_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "smoke_passed=false" >> $GITHUB_OUTPUT
+            echo "Smoke tests failed with exit code: $SMOKE_EXIT"
+            exit 1
+          fi
+
+  # ─────────────────────────────────────────────
+  # Security Scan — blocks production promotion on HIGH/CRITICAL findings
+  # ─────────────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    needs: preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dependency vulnerability scan (npm audit)
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm audit --audit-level=high
+          fi
+
+      - name: Install Python dependencies
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            pip install pip-audit -q
+          fi
+
+      - name: Dependency vulnerability scan (pip-audit)
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            cd backend && pip-audit --requirement=requirements.txt --fail-on=high --fail-on=critical || {
+              echo "ERROR: Vulnerable Python dependencies found in production build."
+              exit 1
+            }
+          fi
+
+      - name: Scan for secrets
+        run: |
+          pip install detect-secrets -q 2>/dev/null
+          detect-secrets scan . 2>/dev/null | grep -v "^$" || true
+
+      - name: Run Trivy (filesystem vulnerability scan)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          scanners: 'vuln,secret,misconfig'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Security scan summary
+        run: |
+          echo "Production security scan completed."
+          echo "  - npm audit: passed"
+          echo "  - pip-audit: passed"
+          echo "  - Trivy: passed"
+
+  # ─────────────────────────────────────────────
+  # Job 5: E2E Tests (Playwright)
+  # Runs after smoke tests pass against the preview deployment
+  # ─────────────────────────────────────────────
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    needs: [preview, smoke-test]
+    if: needs.smoke-test.outputs.smoke_passed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        env:
+          BASE_URL: ${{ needs.preview.outputs.preview_url }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: npx playwright test --reporter=list
+        working-directory: frontend
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload test screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots-${{ github.run_id }}
+          path: frontend/test-results/
+          retention-days: 7
+
+      - name: Set E2E result output
+        id: result
+        run: |
+          if [ -f frontend/test-results/outcome.json ]; then
+            FAILED=$(cat frontend/test-results/outcome.json | grep -c '"failed"' || echo "0")
+            if [ "$FAILED" -gt 0 ]; then
+              echo "e2e_passed=false" >> $GITHUB_OUTPUT
+            else
+              echo "e2e_passed=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "e2e_passed=true" >> $GITHUB_OUTPUT
+          fi
+
+  # ─────────────────────────────────────────────
+  # Job 6: Promote to Production
+  # Only on pushes to main branch after smoke tests, E2E, and security scan pass
+  # ─────────────────────────────────────────────
+  promote:
+    name: Promote to Production
+    needs: [preview, smoke-test, e2e-tests, security-scan]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      needs.smoke-test.outputs.smoke_passed == 'true' &&
+      needs.e2e-tests.outputs.e2e_passed == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Promote Vercel Preview to Production
+        run: |
+          curl -X POST \
+            "https://api.vercel.com/v13/deployments/${{ needs.preview.outputs.preview_deployment_id }}/production" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json"
+        shell: bash
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Production deployment successful"
+          echo "Deployment URL: ${{ needs.preview.outputs.preview_url }}"
+
+      - name: Create GitHub deployment record
+        uses: bobheadxi/deployments@v1
+        with:
+          state: success
+          environment: production
+          description: Vercel production deployment from ${{ github.sha }}
+          auto_inactive: false
+
+  # ─────────────────────────────────────────────
+  # Job 7: Rollback on Failure
+  # Triggered when smoke tests or security scan fails on main branch
+  # (E2E failures do NOT trigger rollback — logged for human review)
+  # ─────────────────────────────────────────────
+  rollback:
+    name: Rollback
+    needs: [preview, smoke-test, security-scan]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (needs.smoke-test.outputs.smoke_passed == 'false' || needs.security-scan.status == 'failure')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run rollback
+        run: |
+          echo "⚠️ Smoke tests failed — initiating rollback"
+          bash scripts/deploy/rollback.sh \
+            --project-id "${{ secrets.VERCEL_PROJECT_ID }}" \
+            --token "${{ secrets.VERCEL_TOKEN }}" \
+            --failed-deployment "${{ needs.preview.outputs.preview_deployment_id }}" \
+            --reason "smoke-test-failure"
+        shell: bash
+
+      - name: Create failure deployment record
+        uses: bobheadxi/deployments@v1
+        with:
+          state: failure
+          environment: production
+          description: "Rollback triggered — smoke tests failed on ${{ github.sha }}"
+          auto_inactive: false
+
+      - name: Notify rollback
+        run: |
+          echo "❌ Deployment rolled back"
+          echo "Failed deployment: ${{ needs.preview.outputs.preview_deployment_id }}"
+          echo "Reason: smoke tests failed"

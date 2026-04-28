@@ -1,0 +1,135 @@
+{
+  "tables": [
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": true,
+          "primary_key": true,
+          "unique": false,
+          "default": "uuid_generate_v4()",
+          "references": null
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR",
+          "nullable": false,
+          "primary_key": false,
+          "unique": true,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "password_hash",
+          "type": "VARCHAR",
+          "nullable": false,
+          "primary_key": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "nullable": true,
+          "primary_key": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "role",
+          "type": "VARCHAR",
+          "nullable": true,
+          "primary_key": false,
+          "unique": false,
+          "default": "'user'",
+          "references": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "primary_key": false,
+          "unique": false,
+          "default": "NOW()",
+          "references": null
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "primary_key": false,
+          "unique": false,
+          "default": "NOW()",
+          "references": null
+        }
+      ],
+      "comment": "User accounts and authentication"
+    },
+    {
+      "name": "sessions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": true,
+          "primary_key": true,
+          "unique": false,
+          "default": "uuid_generate_v4()",
+          "references": null
+        },
+        {
+          "name": "user_id",
+          "type": "UUID",
+          "nullable": false,
+          "primary_key": false,
+          "unique": false,
+          "default": null,
+          "references": "users(id)"
+        },
+        {
+          "name": "token_hash",
+          "type": "VARCHAR",
+          "nullable": false,
+          "primary_key": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "expires_at",
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "primary_key": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "primary_key": false,
+          "unique": false,
+          "default": "NOW()",
+          "references": null
+        }
+      ],
+      "comment": "User session management"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "sessions",
+      "to": "users",
+      "type": "one-to-many"
+    }
+  ],
+  "extensions": [
+    "uuid-ossp",
+    "pg_trgm"
+  ]
+}
