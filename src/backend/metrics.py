@@ -3,16 +3,15 @@ Prometheus metrics instrumentation for AIWA backend.
 Exposes agent execution, task queue, API, and deployment metrics.
 """
 
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
 from time import perf_counter
-from typing import Callable
 
-from prometheus_client import Counter, Gauge, Histogram, Info, generate_latest, CONTENT_TYPE_LATEST
 from fastapi import APIRouter, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, Info, generate_latest
 
 from .config import get_settings
-
 
 # ── Agent Execution Metrics ──────────────────────────────────────────────────
 

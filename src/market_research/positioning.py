@@ -1,4 +1,4 @@
-from .report import CompetitorProfile, Trend, PositioningAnalysis
+from .report import CompetitorProfile, PositioningAnalysis, Trend
 
 
 class PositioningAnalyzer:

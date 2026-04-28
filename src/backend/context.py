@@ -4,7 +4,6 @@ Used by logging, Sentry, and metrics to enrich every log entry/event.
 """
 
 import contextvars
-from typing import Optional
 
 _task_context: contextvars.ContextVar[dict] = contextvars.ContextVar("task_context", default={})
 

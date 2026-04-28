@@ -1,7 +1,7 @@
-from typing import Optional
-from .web_search import WebSearch
-from .report import MarketSizing
 import re
+
+from .report import MarketSizing
+from .web_search import WebSearch
 
 
 class MarketSizingAnalyzer:

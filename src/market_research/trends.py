@@ -1,5 +1,5 @@
-from .web_search import WebSearch
 from .report import Trend
+from .web_search import WebSearch
 
 
 class TrendAnalyzer:

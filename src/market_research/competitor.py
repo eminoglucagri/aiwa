@@ -1,7 +1,7 @@
-from typing import Optional
-from .web_search import WebSearch
-from .report import CompetitorProfile
 import re
+
+from .report import CompetitorProfile
+from .web_search import WebSearch
 
 
 class CompetitorAnalyzer:
@@ -45,7 +45,7 @@ class CompetitorAnalyzer:
                         return names
         return names
 
-    def _profile_competitor(self, name: str, target_market: str) -> Optional[CompetitorProfile]:
+    def _profile_competitor(self, name: str, target_market: str) -> CompetitorProfile | None:
         try:
             profile_query = f"{name} pricing features"
             results = self.searcher.search_with_retry(profile_query)

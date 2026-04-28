@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass
@@ -50,8 +49,8 @@ class MarketAnalysisReport:
     trends: list[Trend] = field(default_factory=list)
     positioning: PositioningAnalysis = field(default_factory=PositioningAnalysis)
     sources: list[str] = field(default_factory=list)
-    warning: Optional[str] = None
-    error: Optional[str] = None
+    warning: str | None = None
+    error: str | None = None
 
     def to_dict(self) -> dict:
         return {

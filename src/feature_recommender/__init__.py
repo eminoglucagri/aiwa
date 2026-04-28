@@ -19,11 +19,11 @@ from feature_recommender.schemas.recommendations import (
 from market_research import MarketAnalysisReport
 
 __all__ = [
-    "FeatureRecommender",
-    "FeatureRecommendationsReport",
-    "FeatureRecommendation",
-    "FeaturePriority",
     "FeatureCategory",
+    "FeaturePriority",
+    "FeatureRecommendation",
+    "FeatureRecommendationsReport",
+    "FeatureRecommender",
 ]
 
 

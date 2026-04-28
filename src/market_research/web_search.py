@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import time
-from typing import Optional
 
 
 class WebSearch:
@@ -76,7 +75,7 @@ class WebSearch:
         """Apply rate limiting delay (alias for _rate_limit)."""
         self._rate_limit()
 
-    def fetch_page(self, url: str, timeout: int = 10) -> Optional[str]:
+    def fetch_page(self, url: str, timeout: int = 10) -> str | None:
         """Fetch a single page and return its text content."""
         import requests
 

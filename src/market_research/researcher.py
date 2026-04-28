@@ -1,11 +1,11 @@
 import asyncio
-from typing import Optional
+
 from .competitor import CompetitorAnalyzer
 from .market_sizing import MarketSizingAnalyzer
-from .trends import TrendAnalyzer
 from .positioning import PositioningAnalyzer
-from .web_search import WebSearch
 from .report import MarketAnalysisReport
+from .trends import TrendAnalyzer
+from .web_search import WebSearch
 
 
 class MarketResearcher:
@@ -16,7 +16,7 @@ class MarketResearcher:
         self.trend_analyzer = TrendAnalyzer(self.searcher)
         self.positioning_analyzer = PositioningAnalyzer()
 
-    async def analyze(self, app_idea: str, target_market: str, regions: Optional[list[str]] = None) -> MarketAnalysisReport:
+    async def analyze(self, app_idea: str, target_market: str, regions: list[str] | None = None) -> MarketAnalysisReport:
         report = MarketAnalysisReport(app_idea=app_idea, target_market=target_market)
 
         try:

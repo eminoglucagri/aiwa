@@ -68,12 +68,7 @@ def setup_logging(log_level: str | None = None) -> None:
     ]
 
     structlog.configure(
-        processors=shared_processors
-        + [
-            structlog.processors.JSONRenderer()
-            if settings.log_format == "json"
-            else structlog.dev.ConsoleRenderer(),
-        ],
+        processors=[*shared_processors, structlog.processors.JSONRenderer() if settings.log_format == "json" else structlog.dev.ConsoleRenderer()],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),

@@ -1,6 +1,8 @@
 """Feature recommendation engine — wraps feature_recommender.engine with typed interface."""
 from __future__ import annotations
 
+from market_research.models import MarketAnalysisReport
+
 from feature_recommender.engine import FeatureRecommender as _Engine
 from feature_recommender.schemas.recommendations import (
     FeatureCategory,
@@ -8,14 +10,13 @@ from feature_recommender.schemas.recommendations import (
     FeatureRecommendation,
     FeatureRecommendationsReport,
 )
-from market_research.models import MarketAnalysisReport
 
 __all__ = [
-    "FeatureRecommender",
-    "FeatureRecommendationsReport",
-    "FeatureRecommendation",
-    "FeaturePriority",
     "FeatureCategory",
+    "FeaturePriority",
+    "FeatureRecommendation",
+    "FeatureRecommendationsReport",
+    "FeatureRecommender",
 ]
 
 
