@@ -1,0 +1,152 @@
+# Prometheus alerting rules for AIWA platform
+# These fire when defined thresholds are crossed and route to Alertmanager.
+
+groups:
+  - name: "aiwa-agent"
+    interval: 30s
+    rules:
+      # ── Agent Task Alerts ─────────────────────────────────────────────────
+      - alert: AgentTaskFailureRateHigh
+        expr: |
+          rate(aiwa_agent_task_total{status="failed"}[5m])
+          / rate(aiwa_agent_task_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: aiwa-platform
+        annotations:
+          summary: "High agent task failure rate"
+          description: "More than 10% of agent tasks are failing over the last 5 minutes. Current rate: {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.aiwa.internal/runbooks/agent-failures"
+
+      - alert: AgentTaskTimeout
+        expr: aiwa_agent_task_duration_seconds > 600
+        for: 1m
+        labels:
+          severity: warning
+          team: aiwa-platform
+        annotations:
+          summary: "Agent task exceeding timeout threshold"
+          description: "Task has been running for more than 10 minutes ({{ $value | humanizeDuration }}). Agent: {{ $labels.agent_id }}, Type: {{ $labels.task_type }}"
+
+      - alert: NoAgentTasksCompleted
+        expr: |
+          rate(aiwa_agent_task_total{status="success"}[30m]) == 0
+          and rate(aiwa_agent_task_total[30m]) > 0
+        for: 30m
+        labels:
+          severity: warning
+          team: aiwa-platform
+        annotations:
+          summary: "No agent tasks completed in 30 minutes"
+          description: "Tasks are being submitted but none have completed. This may indicate worker starvation or a systemic issue."
+
+      - alert: HighAgentCost
+        expr: increase(aiwa_agent_cost_usd[1h]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: aiwa-platform
+        annotations:
+          summary: "High API cost in the last hour"
+          description: "Agent API costs have exceeded $100 in the past hour. Current: ${{ $value }}"
+
+  - name: "aiwa-queue"
+    interval: 30s
+    rules:
+      # ── Queue Alerts ────────────────────────────────────────────────────────
+      - alert: HighQueueDepth
+        expr: aiwa_queue_depth > 100
+        for: 10m
+        labels:
+          severity: warning
+          team: aiwa-platform
+        annotations:
+          summary: "Task queue depth is high"
+          description: "Queue {{ $labels.queue_name }} has {{ $value }} pending tasks. Consider scaling workers."
+
+      - alert: QueueStalled
+        expr: |
+          rate(aiwa_queue_tasks_total{status="dequeued"}[10m]) == 0
+          and rate(aiwa_queue_tasks_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: critical
+          team: aiwa-platform
+        annotations:
+          summary: "Task queue appears stalled"
+          description: "No tasks have been dequeued in the last 10 minutes despite queued tasks existing."
+
+  - name: "aiwa-deployment"
+    interval: 30s
+    rules:
+      # ── Deployment Alerts ───────────────────────────────────────────────────
+      - alert: DeploymentFailureRateHigh
+        expr: |
+          rate(aiwa_deployment_total{status="failed"}[15m])
+          / rate(aiwa_deployment_total[15m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: aiwa-platform
+        annotations:
+          summary: "High deployment failure rate"
+          description: "More than 5% of deployments are failing. Current failure rate: {{ $value | humanizePercentage }}"
+
+      - alert: DeploymentStalled
+        expr: increase(aiwa_deployment_total{status="success"}[60m]) == 0
+        for: 60m
+        labels:
+          severity: warning
+          team: aiwa-platform
+        annotations:
+          summary: "No successful deployments in 60 minutes"
+          description: "No deployments have completed successfully in the past hour."
+
+  - name: "aiwa-api"
+    interval: 30s
+    rules:
+      # ── API Health Alerts ──────────────────────────────────────────────────
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(aiwa_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: aiwa-platform
+        annotations:
+          summary: "High API latency at p95"
+          description: "API p95 latency is {{ $value }}s (threshold: 2s). Path: {{ $labels.path }}"
+
+      - alert: APIServerDown
+        expr: up{job="aiwa-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: aiwa-platform
+        annotations:
+          summary: "AIWA API server is down"
+          description: "The AIWA API is not responding to Prometheus scrapes. Check pod/container status."
+
+  - name: "aiwa-uptime"
+    interval: 60s
+    rules:
+      # ── Uptime Alerts ──────────────────────────────────────────────────────
+      - alert: GeneratedAppDown
+        expr: probe_success{job="generated-apps"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: aiwa-platform
+        annotations:
+          summary: "Generated application is down"
+          description: "The generated app at {{ $labels.instance }} is not responding. URL: {{ $labels.instance }}"
+
+      - alert: GeneratedAppSSLCertExpiring
+        expr: probe_ssl_cert_expiry{job="generated-apps"} < 604800  # 7 days in seconds
+        for: 1h
+        labels:
+          severity: warning
+          team: aiwa-platform
+        annotations:
+          summary: "Generated app SSL certificate expires soon"
+          description: "SSL cert for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"

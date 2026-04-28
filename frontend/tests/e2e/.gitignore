@@ -1,0 +1,6 @@
+.auth/
+playwright-report/
+test-results/
+*.png
+*.webm
+trace.zip
