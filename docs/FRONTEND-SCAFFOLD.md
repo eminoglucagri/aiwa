@@ -415,6 +415,16 @@ ComponentName.test.tsx:
 
 Write test files for every feature component. Use `vi.mock()` for API calls.
 
+### E2E Test Suite (AIWA-29)
+
+After scaffolding, the E2E Test Suite (AIWA-29) runs against the generated frontend via the CI pipeline. See `docs/E2E-TEST-SUITE.md` for the full prompt chain. The E2E suite covers:
+
+- **P0 Journeys**: Auth flows (login, register, logout), primary feature actions, navigation
+- **P1 Journeys**: List/detail views, error states, empty states
+- **Mobile tests**: Run as non-blocking report (do not block promotion to production)
+
+E2E tests are automatically triggered by the Vercel deployment pipeline (AIWA-20). The E2E job runs Playwright tests against the Vercel preview URL and archives reports as GitHub Actions artifacts.
+
 ---
 
 ## Completion Criteria

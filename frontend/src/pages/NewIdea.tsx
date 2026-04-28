@@ -1,4 +1,4 @@
-import { IdeaForm } from "../components/IdeaIntake/IdeaForm";
+import { IdeaForm } from '../components/IdeaIntake/IdeaForm'
 
 export function NewIdea() {
   return (
@@ -7,5 +7,5 @@ export function NewIdea() {
         <IdeaForm />
       </div>
     </div>
-  );
+  )
 }

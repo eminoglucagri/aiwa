@@ -1,59 +1,61 @@
 interface AnalysisReportProps {
   analysis: {
-    scope_score: string;
-    complexity_score: string;
+    scope_score: string
+    complexity_score: string
     tech_feasibility: {
-      verdict: string;
-      challenges: string[];
-      suggestions: string[];
-    };
+      verdict: string
+      challenges: string[]
+      suggestions: string[]
+    }
     estimated_effort_hours: {
-      min: number;
-      max: number;
-      confidence: string;
-    };
+      min: number
+      max: number
+      confidence: string
+    }
     recommended_stack: {
-      frontend: string;
-      backend: string | null;
-      database: string | null;
-      deployment: string;
-    };
+      frontend: string
+      backend: string | null
+      database: string | null
+      deployment: string
+    }
     feature_breakdown: Array<{
-      feature: string;
-      estimated_hours: number;
-      priority: string;
-    }>;
+      feature: string
+      estimated_hours: number
+      priority: string
+    }>
     risks: Array<{
-      description: string;
-      severity: string;
-      mitigation: string;
-    }>;
-    summary: string;
-  };
+      description: string
+      severity: string
+      mitigation: string
+    }>
+    summary: string
+  }
 }
 
 export function AnalysisReport({ analysis }: AnalysisReportProps) {
-  const verdictColor = {
-    feasible: "bg-green-100 text-green-800",
-    risky: "bg-yellow-100 text-yellow-800",
-    not_feasible: "bg-red-100 text-red-800",
-  }[analysis.tech_feasibility.verdict] || "bg-gray-100 text-gray-800";
+  const verdictColor =
+    {
+      feasible: 'bg-green-100 text-green-800',
+      risky: 'bg-yellow-100 text-yellow-800',
+      not_feasible: 'bg-red-100 text-red-800',
+    }[analysis.tech_feasibility.verdict] || 'bg-gray-100 text-gray-800'
 
-  const scopeColor = {
-    small: "text-green-600",
-    medium: "text-blue-600",
-    large: "text-orange-600",
-    xlarge: "text-red-600",
-  }[analysis.scope_score] || "text-gray-600";
+  const scopeColor =
+    {
+      small: 'text-green-600',
+      medium: 'text-blue-600',
+      large: 'text-orange-600',
+      xlarge: 'text-red-600',
+    }[analysis.scope_score] || 'text-gray-600'
 
   const severityBadge = (severity: string) => {
-    const colors = {
-      low: "bg-green-100 text-green-800",
-      medium: "bg-yellow-100 text-yellow-800",
-      high: "bg-red-100 text-red-800",
-    };
-    return colors[severity] || "bg-gray-100 text-gray-800";
-  };
+    const colors: Record<string, string> = {
+      low: 'bg-green-100 text-green-800',
+      medium: 'bg-yellow-100 text-yellow-800',
+      high: 'bg-red-100 text-red-800',
+    }
+    return colors[severity] || 'bg-gray-100 text-gray-800'
+  }
 
   return (
     <div className="space-y-6">
@@ -65,9 +67,7 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
           <span className="text-sm text-gray-500">Scope</span>
-          <p className={`text-2xl font-bold capitalize ${scopeColor}`}>
-            {analysis.scope_score}
-          </p>
+          <p className={`text-2xl font-bold capitalize ${scopeColor}`}>{analysis.scope_score}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <span className="text-sm text-gray-500">Complexity</span>
@@ -75,7 +75,9 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <span className="text-sm text-gray-500">Tech Feasibility</span>
-          <span className={`inline-block px-2 py-1 rounded text-sm font-semibold mt-1 ${verdictColor}`}>
+          <span
+            className={`inline-block px-2 py-1 rounded text-sm font-semibold mt-1 ${verdictColor}`}
+          >
             {analysis.tech_feasibility.verdict}
           </span>
         </div>
@@ -94,14 +96,22 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-3">Recommended Stack</h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div><span className="font-medium">Frontend:</span> {analysis.recommended_stack.frontend}</div>
+          <div>
+            <span className="font-medium">Frontend:</span> {analysis.recommended_stack.frontend}
+          </div>
           {analysis.recommended_stack.backend && (
-            <div><span className="font-medium">Backend:</span> {analysis.recommended_stack.backend}</div>
+            <div>
+              <span className="font-medium">Backend:</span> {analysis.recommended_stack.backend}
+            </div>
           )}
           {analysis.recommended_stack.database && (
-            <div><span className="font-medium">Database:</span> {analysis.recommended_stack.database}</div>
+            <div>
+              <span className="font-medium">Database:</span> {analysis.recommended_stack.database}
+            </div>
           )}
-          <div><span className="font-medium">Deployment:</span> {analysis.recommended_stack.deployment}</div>
+          <div>
+            <span className="font-medium">Deployment:</span> {analysis.recommended_stack.deployment}
+          </div>
         </div>
       </div>
 
@@ -110,7 +120,9 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
           <h3 className="text-lg font-semibold mb-3">Challenges</h3>
           <ul className="list-disc list-inside space-y-1">
             {analysis.tech_feasibility.challenges.map((c, i) => (
-              <li key={i} className="text-gray-700">{c}</li>
+              <li key={i} className="text-gray-700">
+                {c}
+              </li>
             ))}
           </ul>
         </div>
@@ -121,7 +133,9 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
           <h3 className="text-lg font-semibold mb-3">Suggestions</h3>
           <ul className="list-disc list-inside space-y-1">
             {analysis.tech_feasibility.suggestions.map((s, i) => (
-              <li key={i} className="text-gray-700">{s}</li>
+              <li key={i} className="text-gray-700">
+                {s}
+              </li>
             ))}
           </ul>
         </div>
@@ -144,11 +158,15 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
                   <td className="py-2">{f.feature}</td>
                   <td className="py-2 text-right">{f.estimated_hours}h</td>
                   <td className="py-2 text-right">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      f.priority === "must" ? "bg-red-100 text-red-800" :
-                      f.priority === "should" ? "bg-yellow-100 text-yellow-800" :
-                      "bg-gray-100 text-gray-800"
-                    }`}>
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        f.priority === 'must'
+                          ? 'bg-red-100 text-red-800'
+                          : f.priority === 'should'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
                       {f.priority}
                     </span>
                   </td>
@@ -165,7 +183,9 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
           <div className="space-y-3">
             {analysis.risks.map((r, i) => (
               <div key={i} className="flex items-start gap-3">
-                <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${severityBadge(r.severity)}`}>
+                <span
+                  className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${severityBadge(r.severity)}`}
+                >
                   {r.severity}
                 </span>
                 <div>
@@ -178,5 +198,5 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
         </div>
       )}
     </div>
-  );
+  )
 }
